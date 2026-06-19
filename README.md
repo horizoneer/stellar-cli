@@ -26,7 +26,7 @@ npm run build
 npm link
 
 # Use the CLI
-stellar-inspector inspect <hash-or-xdr>
+stellar-cli  inspect <hash-or-xdr>
 
 # Or run directly
 npm run dev -- inspect <hash-or-xdr>
@@ -36,29 +36,29 @@ npm run dev -- inspect <hash-or-xdr>
 
 ```bash
 # Inspect a transaction on mainnet (default)
-stellar-inspector inspect <transaction-hash>
+stellar-cli  inspect <transaction-hash>
 
 # Inspect a transaction on testnet
-stellar-inspector inspect <transaction-hash> --network testnet
+stellar-cli  inspect <transaction-hash> --network testnet
 
 # Show raw JSON output
-stellar-inspector inspect <transaction-hash> --raw
+stellar-cli  inspect <transaction-hash> --raw
 
 # Short flags
-stellar-inspector inspect <transaction-hash> -n testnet -r
+stellar-cli  inspect <transaction-hash> -n testnet -r
 
 # Show help
-stellar-inspector --help
+stellar-cli  --help
 
 # Show version
-stellar-inspector --version
+stellar-cli  --version
 ```
 
 ## Examples
 
 ```bash
 # View a specific transaction
-stellar-inspector inspect abc123def456... --network mainnet
+stellar-cli inspect abc123def456... --network mainnet
 
 # Output:
 # 📡 Stellar Transaction Inspector
