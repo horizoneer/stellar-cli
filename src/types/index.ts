@@ -4,6 +4,11 @@
 
 export * from './account';
 export * from './network';
+export * from './search';
+export * from './effects';
+export * from './fee';
+export * from './assets';
+export * from './offers';
 
 /**
  * Represents a Stellar transaction from Horizon API

@@ -10,6 +10,11 @@ import { registerAccountCommand } from './commands/account';
 import { registerNetworkCommand } from './commands/network';
 import { registerValidateCommand } from './commands/validate';
 import { registerStreamCommand } from './commands/stream';
+import { registerSearchCommand } from './commands/search';
+import { registerAssetsCommand } from './commands/assets';
+import { registerOffersCommand } from './commands/offers';
+import { registerEffectsCommand } from './commands/effects';
+import { registerFeesCommand } from './commands/fees';
 
 // Create CLI program
 const program = new Command();
@@ -26,6 +31,11 @@ registerAccountCommand(program);
 registerNetworkCommand(program);
 registerValidateCommand(program);
 registerStreamCommand(program);
+registerSearchCommand(program);
+registerAssetsCommand(program);
+registerOffersCommand(program);
+registerEffectsCommand(program);
+registerFeesCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
