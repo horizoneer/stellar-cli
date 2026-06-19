@@ -58,3 +58,37 @@ export interface OperationsResponse {
     records: Operation[];
   };
 }
+
+/**
+ * Represents a Stellar ledger from Horizon API
+ */
+export interface Ledger {
+  id: string;
+  sequence: number;
+  hash: string;
+  prev_hash: string;
+  transaction_count: number;
+  operation_count: number;
+  tx_set_operation_count: number;
+  closed_at: string;
+  total_coins: string;
+  fee_pool: string;
+  base_fee_in_stroops: number;
+  base_reserve_in_stroops: number;
+  max_tx_set_size: number;
+  protocol_version: number;
+}
+
+/**
+ * Represents a list of transactions/ledgers/operations from Horizon API
+ */
+export interface CollectionResponse<T> {
+  _links: {
+    self: { href: string };
+    next: { href: string };
+    prev: { href: string };
+  };
+  _embedded: {
+    records: T[];
+  };
+}
