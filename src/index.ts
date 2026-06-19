@@ -6,6 +6,10 @@
 
 import { Command } from 'commander';
 import { registerInspectCommand } from './commands/inspect';
+import { registerAccountCommand } from './commands/account';
+import { registerNetworkCommand } from './commands/network';
+import { registerValidateCommand } from './commands/validate';
+import { registerStreamCommand } from './commands/stream';
 
 // Create CLI program
 const program = new Command();
@@ -18,6 +22,10 @@ program
 
 // Register commands
 registerInspectCommand(program);
+registerAccountCommand(program);
+registerNetworkCommand(program);
+registerValidateCommand(program);
+registerStreamCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
