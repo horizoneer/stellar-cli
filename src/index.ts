@@ -28,6 +28,7 @@ import { registerPathfindCommand } from './commands/pathfind';
 import { registerOperationsCommand } from './commands/operations';
 import { registerTradesCommand } from './commands/trades';
 import { registerOrderbookCommand } from './commands/orderbook';
+import { registerAssetsHeldCommand } from './commands/assetsheld';
 
 // Create CLI program
 const program = new Command();
@@ -62,6 +63,7 @@ registerPathfindCommand(program);
 registerOperationsCommand(program);
 registerTradesCommand(program);
 registerOrderbookCommand(program);
+registerAssetsHeldCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
