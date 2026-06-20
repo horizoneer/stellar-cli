@@ -20,6 +20,7 @@ import { registerBalancesCommand } from './commands/balances';
 import { registerTransactionsCommand } from './commands/transactions';
 import { registerPaymentsCommand } from './commands/payments';
 import { registerExportCommand } from './commands/export';
+import { registerTrustlinesCommand } from './commands/trustlines';
 
 // Create CLI program
 const program = new Command();
@@ -46,6 +47,7 @@ registerBalancesCommand(program);
 registerTransactionsCommand(program);
 registerPaymentsCommand(program);
 registerExportCommand(program);
+registerTrustlinesCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
