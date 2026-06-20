@@ -18,6 +18,7 @@ import { registerFeesCommand } from './commands/fees';
 import { registerLedgerCommand } from './commands/ledger';
 import { registerBalancesCommand } from './commands/balances';
 import { registerTransactionsCommand } from './commands/transactions';
+import { registerPaymentsCommand } from './commands/payments';
 
 // Create CLI program
 const program = new Command();
@@ -42,6 +43,7 @@ registerFeesCommand(program);
 registerLedgerCommand(program);
 registerBalancesCommand(program);
 registerTransactionsCommand(program);
+registerPaymentsCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
