@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo, PathfindResponse } from '../types';
+import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo, PathfindResponse, Trade, Orderbook } from '../types';
 import { HorizonError } from '../utils/errors';
 
 /**
@@ -365,6 +365,126 @@ export async function fetchPathfind(
       if (error.response?.status === 404) {
         throw new HorizonError(
           `Paths not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches operations for an account
+ * @param accountId - Account ID
+ * @param network - Network to query
+ * @param limit - Number of operations to fetch
+ * @returns Collection of operations
+ */
+export async function fetchAccountOperations(
+  accountId: string,
+  network: Network = 'mainnet',
+  limit: number = 10
+): Promise<CollectionResponse<Operation>> {
+  const baseUrl = HORIZON_URLS[network];
+  const url = `${baseUrl}/accounts/${accountId}/operations?limit=${limit}`;
+
+  try {
+    const response = await axios.get<CollectionResponse<Operation>>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Operations not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches trades for an account
+ * @param accountId - Account ID
+ * @param network - Network to query
+ * @param limit - Number of trades to fetch
+ * @returns Collection of trades
+ */
+export async function fetchAccountTrades(
+  accountId: string,
+  network: Network = 'mainnet',
+  limit: number = 10
+): Promise<CollectionResponse<Trade>> {
+  const baseUrl = HORIZON_URLS[network];
+  const url = `${baseUrl}/accounts/${accountId}/trades?limit=${limit}`;
+
+  try {
+    const response = await axios.get<CollectionResponse<Trade>>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Trades not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches order book for a trading pair
+ * @param sellingAsset - Selling asset (format: "CODE:ISSUER" or "native")
+ * @param buyingAsset - Buying asset (format: "CODE:ISSUER" or "native")
+ * @param network - Network to query
+ * @param limit - Number of price levels to fetch
+ * @returns Order book
+ */
+export async function fetchOrderbook(
+  sellingAsset: string,
+  buyingAsset: string,
+  network: Network = 'mainnet',
+  limit: number = 20
+): Promise<Orderbook> {
+  const baseUrl = HORIZON_URLS[network];
+  let url = `${baseUrl}/order_book?limit=${limit}`;
+  
+  // Selling asset
+  if (sellingAsset === 'native') {
+    url += '&selling_asset_type=native';
+  } else {
+    const [code, issuer] = sellingAsset.split(':');
+    url += `&selling_asset_type=credit_alphanum${code.length <= 4 ? '4' : '12'}&selling_asset_code=${code}&selling_asset_issuer=${issuer}`;
+  }
+  
+  // Buying asset
+  if (buyingAsset === 'native') {
+    url += '&buying_asset_type=native';
+  } else {
+    const [code, issuer] = buyingAsset.split(':');
+    url += `&buying_asset_type=credit_alphanum${code.length <= 4 ? '4' : '12'}&buying_asset_code=${code}&buying_asset_issuer=${issuer}`;
+  }
+
+  try {
+    const response = await axios.get<Orderbook>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Order book not found`,
           404,
           'NOT_FOUND'
         );
