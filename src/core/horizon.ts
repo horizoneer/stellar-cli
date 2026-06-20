@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance } from '../types';
+import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo } from '../types';
 import { HorizonError } from '../utils/errors';
 
 /**
@@ -289,6 +289,36 @@ export async function fetchClaimableBalances(
       if (error.response?.status === 404) {
         throw new HorizonError(
           `Claimable balances not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches Horizon server info from root endpoint
+ * @param network - Network to query
+ * @returns Horizon server info
+ */
+export async function fetchHorizonInfo(
+  network: Network = 'mainnet'
+): Promise<HorizonInfo> {
+  const baseUrl = HORIZON_URLS[network];
+  const url = baseUrl;
+
+  try {
+    const response = await axios.get<HorizonInfo>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Horizon info not found`,
           404,
           'NOT_FOUND'
         );

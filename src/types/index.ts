@@ -126,3 +126,37 @@ export interface Predicate {
   rel_before?: string;
   unconditional?: boolean;
 }
+
+/**
+ * Represents Horizon server info from root endpoint
+ */
+export interface HorizonInfo {
+  _links: {
+    account: { href: string };
+    accounts: { href: string };
+    claimable_balances: { href: string };
+    effects: { href: string };
+    fee_stats: { href: string };
+    ledgers: { href: string };
+    offers: { href: string };
+    operations: { href: string };
+    order_book: { href: string };
+    pathfind: { href: string };
+    payments: { href: string };
+    trade_aggregations: { href: string };
+    trades: { href: string };
+    transactions: { href: string };
+  };
+  horizon_version: string;
+  stellar_core_version: string;
+  ingest_latest_ledger: number;
+  ingest_latest_ledger_close_time: string;
+  history_latest_ledger: number;
+  history_latest_ledger_close_time: string;
+  history_elder_ledger: number;
+  history_elder_ledger_close_time: string;
+  core_latest_ledger: number;
+  network_passphrase: string;
+  current_protocol_version: number;
+  core_supported_protocol_version: number;
+}
