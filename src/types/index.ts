@@ -28,6 +28,7 @@ export interface Transaction {
   memo_type: string;
   memo?: string;
   signatures: string[];
+  successful: boolean;
 }
 
 /**
