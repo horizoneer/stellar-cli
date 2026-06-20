@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo } from '../types';
+import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo, PathfindResponse } from '../types';
 import { HorizonError } from '../utils/errors';
 
 /**
@@ -319,6 +319,52 @@ export async function fetchHorizonInfo(
       if (error.response?.status === 404) {
         throw new HorizonError(
           `Horizon info not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches payment paths from Horizon
+ * @param sourceAccount - Source account ID
+ * @param destinationAccount - Destination account ID
+ * @param destinationAmount - Amount to receive
+ * @param destinationAsset - Asset to receive (format: "CODE:ISSUER" or "native")
+ * @param network - Network to query
+ * @returns Pathfind response
+ */
+export async function fetchPathfind(
+  sourceAccount: string,
+  destinationAccount: string,
+  destinationAmount: string,
+  destinationAsset: string,
+  network: Network = 'mainnet'
+): Promise<PathfindResponse> {
+  const baseUrl = HORIZON_URLS[network];
+  let url = `${baseUrl}/paths/strict-receive?destination_account=${destinationAccount}&destination_amount=${destinationAmount}&source_account=${sourceAccount}`;
+  
+  if (destinationAsset !== 'native') {
+    const [code, issuer] = destinationAsset.split(':');
+    if (!code || !issuer) {
+      throw new Error('Invalid destination asset format. Use "CODE:ISSUER" or "native"');
+    }
+    url += `&destination_asset_type=credit_alphanum${code.length <= 4 ? '4' : '12'}&destination_asset_code=${code}&destination_asset_issuer=${issuer}`;
+  }
+
+  try {
+    const response = await axios.get<PathfindResponse>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Paths not found`,
           404,
           'NOT_FOUND'
         );

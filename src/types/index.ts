@@ -160,3 +160,40 @@ export interface HorizonInfo {
   current_protocol_version: number;
   core_supported_protocol_version: number;
 }
+
+/**
+ * Represents a pathfind response from Horizon
+ */
+export interface PathfindResponse {
+  destination_account: string;
+  destination_amount: string;
+  destination_asset_type: string;
+  destination_asset_code?: string;
+  destination_asset_issuer?: string;
+  source_account: string;
+  records: PaymentPath[];
+}
+
+/**
+ * Represents a single payment path
+ */
+export interface PaymentPath {
+  destination_amount: string;
+  destination_asset_type: string;
+  destination_asset_code?: string;
+  destination_asset_issuer?: string;
+  source_amount: string;
+  source_asset_type: string;
+  source_asset_code?: string;
+  source_asset_issuer?: string;
+  path: Asset[];
+}
+
+/**
+ * Represents an asset in a path
+ */
+export interface Asset {
+  asset_type: string;
+  asset_code?: string;
+  asset_issuer?: string;
+}

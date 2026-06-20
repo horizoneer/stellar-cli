@@ -24,6 +24,7 @@ import { registerTrustlinesCommand } from './commands/trustlines';
 import { registerDataCommand } from './commands/data';
 import { registerClaimableBalancesCommand } from './commands/claimablebalances';
 import { registerServerInfoCommand } from './commands/serverinfo';
+import { registerPathfindCommand } from './commands/pathfind';
 
 // Create CLI program
 const program = new Command();
@@ -54,6 +55,7 @@ registerTrustlinesCommand(program);
 registerDataCommand(program);
 registerClaimableBalancesCommand(program);
 registerServerInfoCommand(program);
+registerPathfindCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
