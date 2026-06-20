@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation } from '../types';
+import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance } from '../types';
 import { HorizonError } from '../utils/errors';
 
 /**
@@ -252,6 +252,43 @@ export async function fetchAccountPayments(
       if (error.response?.status === 404) {
         throw new HorizonError(
           `Payments for account "${accountId}" not found`,
+          404,
+          'NOT_FOUND'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetches claimable balances for an account (or all if no account specified)
+ * @param accountId - Optional Stellar account ID
+ * @param network - Network to query
+ * @param limit - Number of claimable balances to fetch
+ * @returns Collection of claimable balances
+ */
+export async function fetchClaimableBalances(
+  accountId?: string,
+  network: Network = 'mainnet',
+  limit: number = 10
+): Promise<CollectionResponse<ClaimableBalance>> {
+  const baseUrl = HORIZON_URLS[network];
+  let url = `${baseUrl}/claimable_balances?limit=${limit}`;
+  if (accountId) {
+    url = `${baseUrl}/accounts/${accountId}/claimable_balances?limit=${limit}`;
+  }
+
+  try {
+    const response = await axios.get<CollectionResponse<ClaimableBalance>>(url, {
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new HorizonError(
+          `Claimable balances not found`,
           404,
           'NOT_FOUND'
         );

@@ -93,3 +93,36 @@ export interface CollectionResponse<T> {
     records: T[];
   };
 }
+
+/**
+ * Represents a Stellar Claimable Balance from Horizon API
+ */
+export interface ClaimableBalance {
+  id: string;
+  asset: string;
+  amount: string;
+  sponsor?: string;
+  last_modified_ledger: number;
+  last_modified_time: string;
+  claimants: Claimant[];
+}
+
+/**
+ * Represents a claimant on a claimable balance
+ */
+export interface Claimant {
+  destination: string;
+  predicate: Predicate;
+}
+
+/**
+ * Represents a predicate for a claimable balance claimant
+ */
+export interface Predicate {
+  and?: Predicate[];
+  or?: Predicate[];
+  not?: Predicate;
+  abs_before?: string;
+  rel_before?: string;
+  unconditional?: boolean;
+}
