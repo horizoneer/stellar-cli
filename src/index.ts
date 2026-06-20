@@ -26,6 +26,7 @@ import { registerClaimableBalancesCommand } from './commands/claimablebalances';
 import { registerServerInfoCommand } from './commands/serverinfo';
 import { registerPathfindCommand } from './commands/pathfind';
 import { registerOperationsCommand } from './commands/operations';
+import { registerTradesCommand } from './commands/trades';
 
 // Create CLI program
 const program = new Command();
@@ -58,6 +59,7 @@ registerClaimableBalancesCommand(program);
 registerServerInfoCommand(program);
 registerPathfindCommand(program);
 registerOperationsCommand(program);
+registerTradesCommand(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
