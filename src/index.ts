@@ -31,6 +31,10 @@ import { registerTradesCommand } from './commands/trades';
 import { registerOrderbookCommand } from './commands/orderbook';
 import { registerAssetsHeldCommand } from './commands/assetsheld';
 import { registerSignersCommand } from './commands/signers';
+import { registerHistoryCommand } from './commands/history';
+import { registerFeeCommand } from './commands/fee';
+import { registerReplCommand } from './commands/repl';
+import { loadPlugins } from './core/plugins';
 
 // Create CLI program
 const program = new Command();
@@ -68,6 +72,12 @@ registerTradesCommand(program);
 registerOrderbookCommand(program);
 registerAssetsHeldCommand(program);
 registerSignersCommand(program);
+registerHistoryCommand(program);
+registerFeeCommand(program);
+registerReplCommand(program);
+
+// Load plugins
+loadPlugins(program);
 
 // Parse arguments and execute
 program.parse(process.argv);
