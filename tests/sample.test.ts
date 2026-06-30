@@ -56,6 +56,7 @@ describe('stellar-inspector-cli', () => {
         result_meta_xdr: 'AAAAAA==',
         memo_type: 'none',
         signatures: ['sig1'],
+        successful: true,
       };
 
       const decoded = decodeTransaction(mockTx);
@@ -82,6 +83,7 @@ describe('stellar-inspector-cli', () => {
         memo_type: 'text',
         memo: 'Hello Stellar!',
         signatures: ['sig1'],
+        successful: true,
       };
 
       const decoded = decodeTransaction(mockTx);
