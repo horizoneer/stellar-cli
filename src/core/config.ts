@@ -14,6 +14,7 @@ export interface StellarConfig {
   network?: 'mainnet' | 'testnet';
   outputFormat?: 'json' | 'csv' | 'terminal';
   defaultLimit?: number;
+  plugins?: string[];
 }
 
 const CONFIG_FILE_NAME = '.stellarrc';
