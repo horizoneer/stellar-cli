@@ -7,6 +7,11 @@ A modern, user-friendly CLI that fetches transaction details from the Horizon AP
 ## Features
 
 - ✅ Fetch transactions by hash from Horizon API
+- ✅ Account inspection (balances, trustlines, transactions, signers)
+- ✅ Watch mode (stream new transactions live)
+- ✅ Batch inspection (multiple transaction hashes at once)
+- ✅ Output to file (JSON/CSV)
+- ✅ Config file support (.stellarrc)
 - ✅ Support for mainnet and testnet
 - ✅ Beautiful colored terminal output
 - ✅ Decoded operation details (payment, create_account, etc.)
@@ -63,7 +68,7 @@ stellar-cli inspect abc123def456... --network mainnet
 # Output:
 # 📡 Stellar Transaction Inspector
 # ─────────────────────────────────────────────────
-# 
+#
 # ┌──────────────┬─────────────────────────────────┐
 # │ Field        │ Value                           │
 # ├──────────────┼─────────────────────────────────┤
@@ -91,8 +96,17 @@ npm test
 # Run tests with coverage
 npm test -- --coverage
 
-# Lint (if configured)
+# Format code with Prettier
+npm run format
+
+# Check code formatting
+npm run format:check
+
+# Lint code with ESLint
 npm run lint
+
+# Fix linting errors
+npm run lint:fix
 ```
 
 ## Project Structure
@@ -101,18 +115,65 @@ npm run lint
 stellar-cli/
 ├── src/
 │   ├── types/          # TypeScript interfaces
-│   │   └── index.ts
+│   │   ├── index.ts
+│   │   ├── account.ts
+│   │   ├── assets.ts
+│   │   ├── effects.ts
+│   │   ├── fee.ts
+│   │   ├── network.ts
+│   │   ├── offers.ts
+│   │   └── search.ts
 │   ├── utils/          # Utility functions
 │   │   └── errors.ts
 │   ├── core/           # Core business logic
-│   │   ├── horizon.ts  # API client
-│   │   ├── decoder.ts  # Data transformation
-│   │   └── formatter.ts # Terminal output
+│   │   ├── account.ts
+│   │   ├── assets.ts
+│   │   ├── config.ts
+│   │   ├── decoder.ts
+│   │   ├── effects.ts
+│   │   ├── fees.ts
+│   │   ├── formatter.ts
+│   │   ├── horizon.ts
+│   │   ├── network.ts
+│   │   ├── offers.ts
+│   │   ├── search.ts
+│   │   └── xdr.ts
 │   ├── commands/       # CLI commands
-│   │   └── inspect.ts
+│   │   ├── account.ts
+│   │   ├── assets.ts
+│   │   ├── assetsheld.ts
+│   │   ├── balances.ts
+│   │   ├── claimablebalances.ts
+│   │   ├── data.ts
+│   │   ├── effects.ts
+│   │   ├── export.ts
+│   │   ├── fees.ts
+│   │   ├── inspect.ts
+│   │   ├── ledger.ts
+│   │   ├── network.ts
+│   │   ├── offers.ts
+│   │   ├── operations.ts
+│   │   ├── orderbook.ts
+│   │   ├── pathfind.ts
+│   │   ├── payments.ts
+│   │   ├── search.ts
+│   │   ├── serverinfo.ts
+│   │   ├── signers.ts
+│   │   ├── stream.ts
+│   │   ├── trades.ts
+│   │   ├── transactions.ts
+│   │   ├── trustlines.ts
+│   │   ├── validate.ts
+│   │   └── watch.ts
 │   └── index.ts        # CLI entry point
 ├── tests/              # Test files
+│   └── sample.test.ts
 ├── dist/               # Compiled JavaScript
+├── .eslintrc.json      # ESLint config
+├── .prettierrc         # Prettier config
+├── .commitlintrc.json  # Commitlint config
+├── tsconfig.json       # TypeScript config
+├── jest.config.js      # Jest config
 └── package.json
 ```
 
@@ -144,6 +205,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 Built with:
+
 - [Commander.js](https://github.com/tj/commander.js) - CLI framework
 - [Chalk](https://github.com/chalk/chalk) - Terminal styling
 - [cli-table3](https://github.com/cli-table/cli-table3) - ASCII tables
