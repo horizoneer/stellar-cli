@@ -198,15 +198,20 @@ export async function fetchAccount(
  * @param accountId - Stellar account ID
  * @param network - Network to query
  * @param limit - Number of transactions to fetch
+ * @param cursor - Pagination cursor
  * @returns Collection of transactions
  */
 export async function fetchAccountTransactions(
   accountId: string,
   network: Network = 'mainnet',
-  limit: number = 10
+  limit: number = 10,
+  cursor?: string
 ): Promise<CollectionResponse<Transaction>> {
   const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/accounts/${accountId}/transactions?limit=${limit}`;
+  let url = `${baseUrl}/accounts/${accountId}/transactions?limit=${limit}`;
+  if (cursor) {
+    url += `&cursor=${cursor}`;
+  }
 
   try {
     const response = await axios.get<CollectionResponse<Transaction>>(url, {
