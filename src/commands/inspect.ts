@@ -6,9 +6,10 @@
 import ora from 'ora';
 import chalk from 'chalk';
 import fs from 'fs';
+import axios from 'axios';
 import Table from 'cli-table3';
 import { Command } from 'commander';
-import { fetchTransaction, fetchOperations, Network } from '../core/horizon';
+import { fetchTransaction, fetchOperations, Network, HORIZON_URLS } from '../core/horizon';
 import { Transaction } from '../types';
 import { decodeTransaction, decodeOperation, DecodedTransaction, DecodedOperation } from '../core/decoder';
 import { formatTransaction, printError, printInfo } from '../core/formatter';
@@ -22,6 +23,7 @@ export interface InspectOptions {
   network: Network;
   raw: boolean;
   output?: string;
+  memo?: string;
 }
 
 /**
@@ -120,6 +122,12 @@ export async function inspectCommand(
     process.exit(1);
   }
 
+  // Handle memo search
+  if (options.memo) {
+    await searchByMemo(options.memo, network);
+    return;
+  }
+
   // Create and start spinner
   const spinner = ora({
     text: `Fetching ${hashOrXdrList.length} transaction(s)...`,
@@ -206,16 +214,62 @@ export async function inspectCommand(
 }
 
 /**
+ * Search for transactions by memo
+ * @param memoText - Memo text to search for
+ * @param network - Network to query
+ */
+async function searchByMemo(memoText: string, network: Network): Promise<void> {
+  const spinner = ora({
+    text: 'Searching for transactions with matching memo...',
+    spinner: 'dots',
+    color: 'cyan',
+  }).start();
+
+  try {
+    // First, we need to fetch transactions to search through
+    // Since Horizon doesn't support memo search, we fetch recent transactions and filter locally
+    const baseUrl = HORIZON_URLS[network];
+    const url = `${baseUrl}/transactions?limit=200&order=desc`;
+    const response = await axios.get(url, { timeout: 15000 });
+    const transactions = response.data._embedded.records;
+
+    // Find first transaction with matching memo
+    const matchingTx = transactions.find((tx: Transaction) => 
+      tx.memo && tx.memo.toLowerCase().includes(memoText.toLowerCase())
+    );
+
+    if (matchingTx) {
+      spinner.succeed('Found matching transaction!');
+      // Fetch full transaction details and operations
+      const transaction = await fetchTransaction(matchingTx.hash, network);
+      const operationsResponse = await fetchOperations(matchingTx.hash, network);
+      const decodedTx = decodeTransaction(transaction);
+      const decodedOps = operationsResponse._embedded.records.map(decodeOperation);
+      console.log(formatTransaction(decodedTx, decodedOps));
+    } else {
+      spinner.fail('No matching transaction found');
+      printInfo('Try fetching more transactions or using a different memo text');
+    }
+  } catch (error) {
+    spinner.fail('Failed to search for memo');
+    const message = handleError(error);
+    printError(message);
+    process.exit(1);
+  }
+}
+
+/**
  * Registers the inspect command with the CLI
  * @param program - Commander program instance
  */
 export function registerInspectCommand(program: Command): void {
   program
-    .command('inspect <hash-or-xdr...>')
-    .description('Inspect one or more Stellar transactions by hash or XDR')
+    .command('inspect [hash-or-xdr...]')
+    .description('Inspect one or more Stellar transactions by hash or XDR, or search by memo')
     .option('-n, --network <network>', 'Stellar network (mainnet or testnet)', 'mainnet')
     .option('-r, --raw', 'Show raw JSON response instead of formatted output', false)
     .option('-o, --output <file>', 'Export results to file (JSON or CSV)', '')
+    .option('-m, --memo <text>', 'Search for transactions by memo text')
     .action(async (hashOrXdrList: string[], options: InspectOptions) => {
       await inspectCommand(hashOrXdrList, options);
     });
