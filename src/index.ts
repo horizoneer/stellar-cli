@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import { registerInspectCommand } from './commands/inspect';
 import { registerAccountCommand } from './commands/account';
+import { registerWatchCommand } from './commands/watch';
 import { registerNetworkCommand } from './commands/network';
 import { registerValidateCommand } from './commands/validate';
 import { registerStreamCommand } from './commands/stream';
@@ -43,6 +44,7 @@ program
 // Register commands
 registerInspectCommand(program);
 registerAccountCommand(program);
+registerWatchCommand(program);
 registerNetworkCommand(program);
 registerValidateCommand(program);
 registerStreamCommand(program);
