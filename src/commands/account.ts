@@ -8,7 +8,9 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
 import { fetchAccount, formatBalance, calculateTotalXlm } from '../core/account';
-import { Network } from '../core/horizon';
+import { Network, fetchAccountTransactions } from '../core/horizon';
+import { Transaction } from '../types';
+import { readConfig } from '../core/config';
 import { printError, printInfo } from '../core/formatter';
 import { handleError } from '../utils/errors';
 
@@ -19,6 +21,8 @@ export interface AccountOptions {
   network: Network;
   balances: boolean;
   signers: boolean;
+  transactions: boolean;
+  limit: number;
 }
 
 /**
@@ -31,9 +35,16 @@ export async function accountCommand(
   accountId: string,
   options: AccountOptions
 ): Promise<void> {
+  // Load config file
+  const config = readConfig();
+
+  // Merge config with options
+  const network = (options.network as Network) || (config.network as Network) || 'mainnet';
+  const limit = options.limit || config.defaultLimit || 5;
+
   // Validate network option
-  if (options.network !== 'mainnet' && options.network !== 'testnet') {
-    printError(`Invalid network "${options.network}". Use 'mainnet' or 'testnet'.`);
+  if (network !== 'mainnet' && network !== 'testnet') {
+    printError(`Invalid network "${network}". Use 'mainnet' or 'testnet'.`);
     process.exit(1);
   }
 
@@ -51,7 +62,16 @@ export async function accountCommand(
   }).start();
 
   try {
-    const account = await fetchAccount(accountId, options.network);
+    const account = await fetchAccount(accountId, network);
+    
+    // Fetch recent transactions if needed
+    let transactions: Transaction[] = [];
+    if (options.transactions || (!options.balances && !options.signers)) {
+      spinner.text = 'Fetching recent transactions...';
+      const txResponse = await fetchAccountTransactions(accountId, network, limit);
+      transactions = txResponse._embedded.records;
+    }
+    
     spinner.succeed('Account fetched successfully!');
 
     console.log('');
@@ -78,7 +98,7 @@ export async function accountCommand(
     console.log('');
 
     // Balances
-    if (options.balances || !options.signers) {
+    if (options.balances || (!options.signers && !options.transactions)) {
       console.log(chalk.cyan.bold('💰 Balances'));
       console.log(chalk.gray('─'.repeat(50)));
 
@@ -117,7 +137,7 @@ export async function accountCommand(
     }
 
     // Signers
-    if (options.signers || (!options.balances && !options.signers)) {
+    if (options.signers || (!options.balances && !options.transactions)) {
       console.log(chalk.cyan.bold('🔑 Signers'));
       console.log(chalk.gray('─'.repeat(50)));
 
@@ -147,6 +167,41 @@ export async function accountCommand(
       console.log('');
     }
 
+    // Recent Transactions
+    if (options.transactions || (!options.balances && !options.signers)) {
+      console.log(chalk.cyan.bold('📋 Recent Transactions'));
+      console.log(chalk.gray('─'.repeat(50)));
+
+      if (transactions.length === 0) {
+        console.log(chalk.gray('  No recent transactions found.'));
+        console.log('');
+      } else {
+        const txTable = new Table({
+          head: [chalk.blue.bold('#'), chalk.blue.bold('Hash'), chalk.blue.bold('Ops'), chalk.blue.bold('Fee'), chalk.blue.bold('Created'), chalk.blue.bold('Status')],
+          colWidths: [5, 25, 5, 12, 20, 10],
+          style: { head: [], border: ['gray'] },
+        });
+
+        transactions.forEach((tx, index) => {
+          const statusDisplay = tx.successful
+            ? chalk.green('✓ Success')
+            : chalk.yellow('✗ Failed');
+
+          txTable.push([
+            chalk.gray((index + 1).toString()),
+            chalk.cyan(tx.hash.slice(0, 20) + '...'),
+            chalk.white(tx.operation_count.toString()),
+            chalk.white((tx.fee_paid / 10000000).toFixed(7) + ' XLM'),
+            chalk.gray(new Date(tx.created_at).toLocaleString()),
+            statusDisplay,
+          ]);
+        });
+
+        console.log(txTable.toString());
+        console.log('');
+      }
+    }
+
     // Flags
     if (account.flags.auth_required || account.flags.auth_revocable || account.flags.auth_immutable) {
       console.log(chalk.yellow.bold('⚠ Account Flags'));
@@ -172,11 +227,14 @@ export async function accountCommand(
 export function registerAccountCommand(program: Command): void {
   program
     .command('account <account-id>')
-    .description('View Stellar account details, balances, and signers')
+    .description('View Stellar account details, balances, signers, and transaction history')
     .option('-n, --network <network>', 'Stellar network (mainnet or testnet)', 'mainnet')
     .option('-b, --balances', 'Show only balances', false)
     .option('-s, --signers', 'Show only signers', false)
+    .option('-t, --transactions', 'Show only transaction history', false)
+    .option('-l, --limit <number>', 'Number of transactions to show', '5')
     .action(async (accountId: string, options: AccountOptions) => {
+      options.limit = parseInt(String(options.limit), 10);
       await accountCommand(accountId, options);
     });
 }
