@@ -7,7 +7,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
-import { fetchLedger, Network } from '../core/horizon';
+import { fetchLedger, fetchLatestLedger, Network } from '../core/horizon';
 import { printError } from '../core/formatter';
 import { handleError } from '../utils/errors';
 import { Ledger } from '../types';
@@ -66,14 +66,10 @@ function truncateMiddle(str: string, maxLength: number): string {
 }
 
 export async function ledgerCommand(
-  sequence: string,
+  sequence: string | undefined,
   options: LedgerOptions
 ): Promise<void> {
-  const seqNum = parseInt(sequence, 10);
-  if (isNaN(seqNum)) {
-    printError('Invalid ledger sequence number. Must be a positive integer.');
-    process.exit(1);
-  }
+  let ledger: Ledger;
 
   if (options.network !== 'mainnet' && options.network !== 'testnet') {
     printError('Invalid network "' + options.network + '". Use "mainnet" or "testnet".');
@@ -81,13 +77,22 @@ export async function ledgerCommand(
   }
 
   const spinner = ora({
-    text: 'Fetching ledger...',
+    text: sequence ? 'Fetching ledger...' : 'Fetching latest ledger...',
     spinner: 'dots',
     color: 'cyan',
   }).start();
 
   try {
-    const ledger = await fetchLedger(seqNum, options.network);
+    if (sequence) {
+      const seqNum = parseInt(sequence, 10);
+      if (isNaN(seqNum)) {
+        printError('Invalid ledger sequence number. Must be a positive integer.');
+        process.exit(1);
+      }
+      ledger = await fetchLedger(seqNum, options.network);
+    } else {
+      ledger = await fetchLatestLedger(options.network);
+    }
     spinner.succeed('Ledger fetched successfully!');
 
     if (options.raw) {
@@ -98,7 +103,7 @@ export async function ledgerCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch ledger');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }
@@ -106,11 +111,11 @@ export async function ledgerCommand(
 
 export function registerLedgerCommand(program: Command): void {
   program
-    .command('ledger <sequence>')
-    .description('Inspect a Stellar ledger by sequence number')
+    .command('ledger [sequence]')
+    .description('Inspect a Stellar ledger by sequence number (or latest if omitted)')
     .option('-n, --network <network>', 'Stellar network (mainnet or testnet)', 'mainnet')
     .option('-r, --raw', 'Show raw JSON response instead of formatted output', false)
-    .action(async (sequence: string, options: LedgerOptions) => {
+    .action(async (sequence: string | undefined, options: LedgerOptions) => {
       await ledgerCommand(sequence, options);
     });
 }
