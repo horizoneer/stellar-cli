@@ -11,6 +11,7 @@ export interface Account {
   sequence: string;
   subentry_count: number;
   inflation_destination?: string;
+  home_domain?: string;
   last_modified_ledger: number;
   last_modified_time: string;
   thresholds: {

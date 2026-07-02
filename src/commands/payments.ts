@@ -115,7 +115,7 @@ export async function paymentsCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch payments');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

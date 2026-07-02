@@ -207,7 +207,7 @@ export async function inspectCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch transactions');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }
@@ -252,7 +252,7 @@ async function searchByMemo(memoText: string, network: Network): Promise<void> {
     }
   } catch (error) {
     spinner.fail('Failed to search for memo');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

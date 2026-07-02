@@ -135,7 +135,7 @@ export async function claimableBalancesCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch claimable balances');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

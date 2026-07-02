@@ -128,7 +128,7 @@ export async function orderbookCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch order book');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

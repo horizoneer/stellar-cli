@@ -109,7 +109,7 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
     console.log('');
   } catch (error) {
     spinner.fail('Failed to export data');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

@@ -142,7 +142,7 @@ export async function networkCommand(options: NetworkOptions): Promise<void> {
 
   } catch (error) {
     spinner.fail('Failed to fetch network status');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

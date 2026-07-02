@@ -56,7 +56,7 @@ export async function feeCommand(options: FeeOptions): Promise<void> {
     console.log('');
   } catch (error) {
     spinner.fail('Failed to fetch fee statistics');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

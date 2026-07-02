@@ -69,7 +69,7 @@ export async function validateCommand(
 
   } catch (error) {
     spinner.fail('XDR validation failed');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

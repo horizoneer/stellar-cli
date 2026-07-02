@@ -139,7 +139,7 @@ export async function watchCommand(
     };
   } catch (error) {
     printError('Failed to start watcher');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

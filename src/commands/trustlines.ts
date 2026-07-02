@@ -106,7 +106,7 @@ export async function trustlinesCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch trustlines');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

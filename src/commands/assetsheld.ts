@@ -109,7 +109,7 @@ export async function assetsHeldCommand(
     }
   } catch (error) {
     spinner.fail('Failed to fetch assets');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

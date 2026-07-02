@@ -120,7 +120,7 @@ export async function searchCommand(
 
   } catch (error) {
     spinner.fail('Search failed');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

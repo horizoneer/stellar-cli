@@ -158,7 +158,7 @@ export async function effectsCommand(
 
   } catch (error) {
     spinner.fail('Failed to fetch effects');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }

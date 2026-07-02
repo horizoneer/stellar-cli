@@ -158,7 +158,7 @@ export async function assetsCommand(
 
   } catch (error) {
     spinner.fail('Failed to fetch asset information');
-    const message = handleError(error);
+    const { message } = handleError(error);
     printError(message);
     process.exit(1);
   }
