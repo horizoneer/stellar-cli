@@ -15,6 +15,7 @@ export interface StellarConfig {
   outputFormat?: 'json' | 'csv' | 'terminal';
   defaultLimit?: number;
   plugins?: string[];
+  aliases?: Record<string, string>;
 }
 
 const CONFIG_FILE_NAME = '.stellarrc';
@@ -71,4 +72,49 @@ export function mergeConfig(
   defaults: StellarConfig
 ): StellarConfig {
   return { ...defaults, ...config };
+}
+
+/**
+ * Sets an alias for an account address
+ * @param name - Alias name
+ * @param address - Stellar account address
+ * @param location - Optional config file location
+ */
+export function setAlias(name: string, address: string, location?: string): void {
+  const config = readConfig();
+  config.aliases = config.aliases || {};
+  config.aliases[name] = address;
+  writeConfig(config, location);
+}
+
+/**
+ * Gets an alias by name
+ * @param name - Alias name
+ * @returns Stellar account address or undefined if not found
+ */
+export function getAlias(name: string): string | undefined {
+  const config = readConfig();
+  return config.aliases?.[name];
+}
+
+/**
+ * Gets all aliases
+ * @returns Record of alias names to addresses
+ */
+export function getAllAliases(): Record<string, string> {
+  const config = readConfig();
+  return config.aliases || {};
+}
+
+/**
+ * Removes an alias
+ * @param name - Alias name
+ * @param location - Optional config file location
+ */
+export function removeAlias(name: string, location?: string): void {
+  const config = readConfig();
+  if (config.aliases) {
+    delete config.aliases[name];
+    writeConfig(config, location);
+  }
 }

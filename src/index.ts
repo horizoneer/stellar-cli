@@ -34,6 +34,10 @@ import { registerSignersCommand } from './commands/signers';
 import { registerHistoryCommand } from './commands/history';
 import { registerFeeCommand } from './commands/fee';
 import { registerReplCommand } from './commands/repl';
+import { registerAssetCommand } from './commands/asset';
+import { registerBroadcastCommand } from './commands/broadcast';
+import { registerDiffCommand } from './commands/diff';
+import { registerAliasCommand } from './commands/alias';
 import { loadPlugins } from './core/plugins';
 
 // Create CLI program
@@ -75,6 +79,10 @@ registerSignersCommand(program);
 registerHistoryCommand(program);
 registerFeeCommand(program);
 registerReplCommand(program);
+registerAssetCommand(program);
+registerBroadcastCommand(program);
+registerDiffCommand(program);
+registerAliasCommand(program);
 
 // Load plugins
 loadPlugins(program);
