@@ -38,6 +38,10 @@ import { registerAssetCommand } from './commands/asset';
 import { registerBroadcastCommand } from './commands/broadcast';
 import { registerDiffCommand } from './commands/diff';
 import { registerAliasCommand } from './commands/alias';
+import { registerHealthCommand } from './commands/health';
+import { registerSequenceCommand } from './commands/sequence';
+import { registerEstimateCommand } from './commands/estimate';
+import { registerContractCommand } from './commands/contract';
 import { loadPlugins } from './core/plugins';
 
 // Create CLI program
@@ -83,6 +87,10 @@ registerAssetCommand(program);
 registerBroadcastCommand(program);
 registerDiffCommand(program);
 registerAliasCommand(program);
+registerHealthCommand(program);
+registerSequenceCommand(program);
+registerEstimateCommand(program);
+registerContractCommand(program);
 
 // Load plugins
 loadPlugins(program);
