@@ -44,12 +44,12 @@ export async function feeCommand(options: FeeOptions): Promise<void> {
     });
 
     table.push(
-      [chalk.cyan('Base Fee'), stats.last_ledger_base_fee.toLocaleString(), stroopsToXlm(stats.last_ledger_base_fee)],
-      [chalk.cyan('Min Fee'), stats.fee_charged.min.toLocaleString(), stroopsToXlm(stats.fee_charged.min)],
-      [chalk.cyan('Max Fee'), stats.fee_charged.max.toLocaleString(), stroopsToXlm(stats.fee_charged.max)],
-      [chalk.cyan('p10'), stats.fee_charged.p10.toLocaleString(), stroopsToXlm(stats.fee_charged.p10)],
-      [chalk.cyan('p50'), stats.fee_charged.p50.toLocaleString(), stroopsToXlm(stats.fee_charged.p50)],
-      [chalk.cyan('p90'), stats.fee_charged.p90.toLocaleString(), stroopsToXlm(stats.fee_charged.p90)],
+      [chalk.cyan('Base Fee'), parseInt(stats.last_ledger_base_fee, 10).toLocaleString(), stroopsToXlm(parseInt(stats.last_ledger_base_fee, 10))],
+      [chalk.cyan('Min Fee'), parseInt(stats.fee_charged.min, 10).toLocaleString(), stroopsToXlm(parseInt(stats.fee_charged.min, 10))],
+      [chalk.cyan('Max Fee'), parseInt(stats.fee_charged.max, 10).toLocaleString(), stroopsToXlm(parseInt(stats.fee_charged.max, 10))],
+      [chalk.cyan('p10'), parseInt(stats.fee_charged.p10, 10).toLocaleString(), stroopsToXlm(parseInt(stats.fee_charged.p10, 10))],
+      [chalk.cyan('p50'), parseInt(stats.fee_charged.p50, 10).toLocaleString(), stroopsToXlm(parseInt(stats.fee_charged.p50, 10))],
+      [chalk.cyan('p90'), parseInt(stats.fee_charged.p90, 10).toLocaleString(), stroopsToXlm(parseInt(stats.fee_charged.p90, 10))],
     );
 
     console.log(table.toString());

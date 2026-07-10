@@ -54,13 +54,13 @@ export function getRecommendedFee(
 ): number {
   switch (priority) {
     case 'low':
-      return stats.fee_charged.p10;
+      return parseInt(stats.fee_charged.p10, 10);
     case 'medium':
-      return stats.fee_charged.p50;
+      return parseInt(stats.fee_charged.p50, 10);
     case 'high':
-      return stats.fee_charged.p90;
+      return parseInt(stats.fee_charged.p90, 10);
     default:
-      return stats.fee_charged.mode;
+      return parseInt(stats.fee_charged.mode, 10);
   }
 }
 

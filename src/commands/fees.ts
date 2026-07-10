@@ -68,8 +68,8 @@ export async function feesCommand(options: FeesOptions): Promise<void> {
 
     statusTable.push(
       { [chalk.cyan('Network')]: chalk.white(options.network.toUpperCase()) },
-      { [chalk.cyan('Latest Ledger')]: chalk.white(stats.last_ledger.toLocaleString()) },
-      { [chalk.cyan('Base Fee')]: chalk.white(`${stroopsToXlm(stats.last_ledger_base_fee)} XLM`) },
+      { [chalk.cyan('Latest Ledger')]: chalk.white(parseInt(stats.last_ledger, 10).toLocaleString()) },
+      { [chalk.cyan('Base Fee')]: chalk.white(`${stroopsToXlm(parseInt(stats.last_ledger_base_fee, 10))} XLM`) },
       { [chalk.cyan('Capacity Usage')]: chalk.gray(`${(parseFloat(stats.ledger_capacity_usage) * 100).toFixed(1)}%`) },
       { [chalk.cyan('Congestion')]: congestionDisplay[congestion] }
     );
@@ -90,7 +90,8 @@ export async function feesCommand(options: FeesOptions): Promise<void> {
     const percentiles = ['min', 'p10', 'p50', 'p90', 'p95', 'max'] as const;
 
     percentiles.forEach((p) => {
-      const value = stats.fee_charged[p as keyof typeof stats.fee_charged];
+      const valueStr = stats.fee_charged[p as keyof typeof stats.fee_charged];
+      const value = parseInt(valueStr, 10);
       const highlight = (p === 'p50' || p === 'min' || p === 'max');
       feeTable.push({
         [chalk.cyan(p.toUpperCase())]: highlight ? chalk.white(value.toLocaleString()) : chalk.gray(value.toLocaleString()),
@@ -123,7 +124,7 @@ export async function feesCommand(options: FeesOptions): Promise<void> {
     }
 
     console.log('');
-    console.log(chalk.gray(`  Base fee is the minimum required: ${stroopsToXlm(stats.last_ledger_base_fee)} XLM`));
+    console.log(chalk.gray(`  Base fee is the minimum required: ${stroopsToXlm(parseInt(stats.last_ledger_base_fee, 10))} XLM`));
     console.log(chalk.gray(`  Use higher fees during peak hours for faster transactions`));
     console.log('');
 
