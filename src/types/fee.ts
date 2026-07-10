@@ -6,9 +6,10 @@
  * Represents fee stats from the Horizon API
  */
 export interface FeeStats {
-  last_ledger: number;
-  last_ledger_base_fee: number;
+  last_ledger: string;
+  last_ledger_base_fee: string;
   ledger_capacity_usage: string;
+  last_ledger_fee_charged: string;
   fee_charged: FeeDistribution;
   max_fee: FeeDistribution;
 }
@@ -17,20 +18,20 @@ export interface FeeStats {
  * Represents fee distribution statistics
  */
 export interface FeeDistribution {
-  min: number;
-  max: number;
-  mode: number;
-  p10: number;
-  p20: number;
-  p30: number;
-  p40: number;
-  p50: number;
-  p60: number;
-  p70: number;
-  p80: number;
-  p90: number;
-  p95: number;
-  p99: number;
+  min: string;
+  max: string;
+  mode: string;
+  p10: string;
+  p20: string;
+  p30: string;
+  p40: string;
+  p50: string;
+  p60: string;
+  p70: string;
+  p80: string;
+  p90: string;
+  p95: string;
+  p99: string;
 }
 
 /**
