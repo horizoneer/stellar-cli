@@ -1,6 +1,6 @@
 /**
  * Signers Command
- * Shows account's signers and thresholds
+ * Shows account's signers and thresholds (Security Audit)
  */
 
 import ora from 'ora';
@@ -27,10 +27,17 @@ function formatSigners(accountId: string, account: any): string {
   const output: string[] = [];
 
   output.push('');
-  output.push(chalk.blue.bold('🔐 Account Signers & Thresholds'));
+  output.push(chalk.blue.bold('🔐 Account Signers & Thresholds (Security Audit)'));
   output.push(chalk.gray('─'.repeat(70)));
   output.push('');
   output.push(chalk.cyan('Account: ') + chalk.white(truncateMiddle(accountId, 30)));
+  output.push('');
+
+  // Check master key
+  const masterSigner = account.signers.find((s: any) => s.key === accountId);
+  const masterKeyEnabled = masterSigner && masterSigner.weight > 0;
+  
+  output.push(chalk.cyan('Master Key Status: ') + (masterKeyEnabled ? chalk.green('Enabled') : chalk.red('Disabled')));
   output.push('');
 
   // Thresholds
@@ -49,7 +56,7 @@ function formatSigners(accountId: string, account: any): string {
   });
   thresholdTable.push([
     chalk.white(account.thresholds.low_threshold),
-    chalk.white(account.thresholds.med_threshold),
+    chalk.white(account.thresholds.medium_threshold),
     chalk.white(account.thresholds.high_threshold)
   ]);
   output.push(thresholdTable.toString());
@@ -67,9 +74,10 @@ function formatSigners(accountId: string, account: any): string {
     head: [
       chalk.blue.bold('Signer Key'),
       chalk.blue.bold('Weight'),
-      chalk.blue.bold('Type')
+      chalk.blue.bold('Type'),
+      chalk.blue.bold('Is Master?')
     ],
-    colWidths: [40, 15, 20],
+    colWidths: [35, 10, 15, 10],
     style: {
       head: [],
       border: ['gray'],
@@ -77,15 +85,23 @@ function formatSigners(accountId: string, account: any): string {
   });
 
   account.signers.forEach((signer: any) => {
+    const isMaster = signer.key === accountId;
     signersTable.push([
-      chalk.white(truncateMiddle(signer.key, 38)),
+      chalk.white(truncateMiddle(signer.key, 33)),
       chalk.cyan(signer.weight),
-      chalk.gray(signer.type)
+      chalk.gray(signer.type),
+      isMaster ? chalk.green('Yes') : chalk.gray('No')
     ]);
   });
 
   output.push(signersTable.toString());
   output.push('');
+
+  // Security warnings
+  if (account.signers.length === 1 && masterKeyEnabled) {
+    output.push(chalk.yellow.bold('⚠ Security Warning: Only one signer (master key). Consider adding additional signers.'));
+    output.push('');
+  }
 
   return output.join('\n');
 }
@@ -134,7 +150,7 @@ export async function signersCommand(
 export function registerSignersCommand(program: Command): void {
   program
     .command('signers <account-id>')
-    .description('Show account\'s signers and thresholds')
+    .description('Show account\'s signers and thresholds (security audit)')
     .option('-n, --network <network>', 'Stellar network (mainnet or testnet)', 'mainnet')
     .option('-r, --raw', 'Show raw JSON response instead of formatted output', false)
     .action(async (accountId: string, options: SignersOptions) => {
