@@ -2,19 +2,134 @@
  * Horizon API integration for Stellar Inspector CLI
  */
 
-import axios from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import { Transaction, OperationsResponse, Ledger, CollectionResponse, Account, Operation, ClaimableBalance, HorizonInfo, PathfindResponse, Trade, Orderbook, AssetDetails, AssetsResponse } from '../types';
 import { HorizonError } from '../utils/errors';
+import { withRetry } from '../utils/retry';
+import { setupRateLimitInterceptors } from '../utils/rateLimiter';
+import { performanceMonitor } from '../utils/performance';
+
+/**
+ * Simple in-memory cache for Horizon API responses
+ */
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+class HorizonCache {
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
+  private ttl: number = 60000; // 1 minute TTL
+
+  constructor(ttlMs: number = 60000) {
+    this.ttl = ttlMs;
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    const now = Date.now();
+    if (now - entry.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data as T;
+  }
+
+  set<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+// Shared cache instance
+const cache = new HorizonCache();
 
 /**
  * Horizon API endpoints for different networks
  */
 export const HORIZON_URLS = {
-  mainnet: 'https://horizon.stellar.org',
-  testnet: 'https://horizon-testnet.stellar.org',
+  mainnet: process.env.HORIZON_MAINNET_URL || 'https://horizon.stellar.org',
+  testnet: process.env.HORIZON_TESTNET_URL || 'https://horizon-testnet.stellar.org',
 } as const;
 
 export type Network = keyof typeof HORIZON_URLS;
+
+/**
+ * Shared Axios instances for each network
+ */
+const axiosInstances: Record<Network, AxiosInstance> = {
+  mainnet: axios.create({
+    baseURL: HORIZON_URLS.mainnet,
+    timeout: 10000,
+  }),
+  testnet: axios.create({
+    baseURL: HORIZON_URLS.testnet,
+    timeout: 10000,
+  }),
+};
+
+// Setup rate limit interceptors
+setupRateLimitInterceptors(axiosInstances.mainnet);
+setupRateLimitInterceptors(axiosInstances.testnet);
+
+/**
+ * Helper to get Axios instance for a network
+ */
+function getAxiosInstance(network: Network): AxiosInstance {
+  return axiosInstances[network];
+}
+
+/**
+ * Helper to generate cache keys
+ */
+function getCacheKey(network: Network, method: string, url: string, params?: Record<string, unknown>): string {
+  const keyParts = [network, method, url];
+  if (params) {
+    keyParts.push(JSON.stringify(params));
+  }
+  return keyParts.join(':');
+}
+
+/**
+ * Common error handling for Horizon API requests
+ */
+function handleHorizonError(error: unknown, notFoundMessage: string, _network: Network): never {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status === 404) {
+      throw new HorizonError(
+        notFoundMessage,
+        404,
+        'NOT_FOUND'
+      );
+    }
+    if (axiosError.response) {
+      throw new HorizonError(
+        (axiosError.response.data as any)?.title || `HTTP ${axiosError.response.status}`,
+        axiosError.response.status,
+        (axiosError.response.data as any)?.type || 'HTTP_ERROR',
+        axiosError.response.data
+      );
+    }
+    if (axiosError.request) {
+      throw new HorizonError(
+        'No response from Horizon server',
+        0,
+        'NETWORK_ERROR'
+      );
+    }
+  }
+  throw error;
+}
 
 /**
  * Validates if a string is a valid transaction hash
@@ -38,39 +153,37 @@ export async function fetchTransaction(
   hashOrId: string,
   network: Network = 'mainnet'
 ): Promise<Transaction> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/transactions/${hashOrId}`;
+  const cacheKey = getCacheKey(network, 'GET', `/transactions/${hashOrId}`);
+  const cached = cache.get<Transaction>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = `/transactions/${hashOrId}`;
 
   try {
-    const response = await axios.get<Transaction>(url, {
-      timeout: 10000,
+    const startTime = Date.now();
+    const response = await withRetry(() => axios.get<Transaction>(url));
+    const duration = Date.now() - startTime;
+    
+    performanceMonitor.recordMetric({
+      endpoint: `/transactions/${hashOrId}`,
+      duration,
+      timestamp: Date.now(),
+      success: true,
+      statusCode: response.status
     });
+    
+    cache.set(cacheKey, response.data);
     return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Transaction "${hashOrId}" not found on ${network}`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR'
-        );
-      }
-      if (error.request) {
-        throw new HorizonError(
-          'No response from Horizon server',
-          0,
-          'NETWORK_ERROR'
-        );
-      }
-    }
-    throw error;
+  } catch (error: any) {
+    performanceMonitor.recordMetric({
+      endpoint: `/transactions/${hashOrId}`,
+      duration: 0,
+      timestamp: Date.now(),
+      success: false,
+      statusCode: error.response?.status
+    });
+    handleHorizonError(error, `Transaction "${hashOrId}" not found on ${network}`, network);
   }
 }
 
@@ -84,25 +197,19 @@ export async function fetchOperations(
   transactionHash: string,
   network: Network = 'mainnet'
 ): Promise<OperationsResponse> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/transactions/${transactionHash}/operations`;
+  const cacheKey = getCacheKey(network, 'GET', `/transactions/${transactionHash}/operations`);
+  const cached = cache.get<OperationsResponse>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = `/transactions/${transactionHash}/operations`;
 
   try {
-    const response = await axios.get<OperationsResponse>(url, {
-      timeout: 10000,
-    });
+    const response = await withRetry(() => axios.get<OperationsResponse>(url));
+    cache.set(cacheKey, response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Operations for transaction "${transactionHash}" not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Operations for transaction "${transactionHash}" not found`, network);
   }
 }
 
@@ -125,32 +232,19 @@ export async function fetchLedger(
   sequence: number,
   network: Network = 'mainnet'
 ): Promise<Ledger> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/ledgers/${sequence}`;
+  const cacheKey = getCacheKey(network, 'GET', `/ledgers/${sequence}`);
+  const cached = cache.get<Ledger>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = `/ledgers/${sequence}`;
 
   try {
-    const response = await axios.get<Ledger>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<Ledger>(url);
+    cache.set(cacheKey, response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Ledger "${sequence}" not found on ${network}`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Ledger "${sequence}" not found on ${network}`, network);
   }
 }
 
@@ -162,32 +256,18 @@ export async function fetchLedger(
 export async function fetchLatestLedger(
   network: Network = 'mainnet'
 ): Promise<Ledger> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/ledgers?order=desc&limit=1`;
+  const axios = getAxiosInstance(network);
+  const url = `/ledgers?order=desc&limit=1`;
 
   try {
-    const response = await axios.get<CollectionResponse<Ledger>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<Ledger>>(url);
     const records = response.data._embedded.records;
     if (records.length === 0) {
       throw new HorizonError('No ledgers found', 404, 'NOT_FOUND');
     }
     return records[0];
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError('No ledgers found', 404, 'NOT_FOUND');
-      }
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, 'No ledgers found', network);
   }
 }
 
@@ -201,32 +281,19 @@ export async function fetchAccount(
   accountId: string,
   network: Network = 'mainnet'
 ): Promise<Account> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/accounts/${accountId}`;
+  const cacheKey = getCacheKey(network, 'GET', `/accounts/${accountId}`);
+  const cached = cache.get<Account>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = `/accounts/${accountId}`;
 
   try {
-    const response = await axios.get<Account>(url, {
-      timeout: 10000,
-    });
+    const response = await withRetry(() => axios.get<Account>(url));
+    cache.set(cacheKey, response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Account "${accountId}" not found on ${network}`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Account "${accountId}" not found on ${network}`, network);
   }
 }
 
@@ -244,28 +311,17 @@ export async function fetchAccountTransactions(
   limit: number = 10,
   cursor?: string
 ): Promise<CollectionResponse<Transaction>> {
-  const baseUrl = HORIZON_URLS[network];
-  let url = `${baseUrl}/accounts/${accountId}/transactions?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  let url = `/accounts/${accountId}/transactions?limit=${limit}`;
   if (cursor) {
     url += `&cursor=${cursor}`;
   }
 
   try {
-    const response = await axios.get<CollectionResponse<Transaction>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<Transaction>>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Transactions for account "${accountId}" not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Transactions for account "${accountId}" not found`, network);
   }
 }
 
@@ -281,25 +337,14 @@ export async function fetchAccountPayments(
   network: Network = 'mainnet',
   limit: number = 10
 ): Promise<CollectionResponse<Operation>> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/accounts/${accountId}/payments?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  const url = `/accounts/${accountId}/payments?limit=${limit}`;
 
   try {
-    const response = await axios.get<CollectionResponse<Operation>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<Operation>>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Payments for account "${accountId}" not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Payments for account "${accountId}" not found`, network);
   }
 }
 
@@ -315,28 +360,17 @@ export async function fetchClaimableBalances(
   network: Network = 'mainnet',
   limit: number = 10
 ): Promise<CollectionResponse<ClaimableBalance>> {
-  const baseUrl = HORIZON_URLS[network];
-  let url = `${baseUrl}/claimable_balances?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  let url = `/claimable_balances?limit=${limit}`;
   if (accountId) {
-    url = `${baseUrl}/accounts/${accountId}/claimable_balances?limit=${limit}`;
+    url = `/accounts/${accountId}/claimable_balances?limit=${limit}`;
   }
 
   try {
-    const response = await axios.get<CollectionResponse<ClaimableBalance>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<ClaimableBalance>>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Claimable balances not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Claimable balances not found`, network);
   }
 }
 
@@ -348,25 +382,19 @@ export async function fetchClaimableBalances(
 export async function fetchHorizonInfo(
   network: Network = 'mainnet'
 ): Promise<HorizonInfo> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = baseUrl;
+  const cacheKey = getCacheKey(network, 'GET', '');
+  const cached = cache.get<HorizonInfo>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = '';
 
   try {
-    const response = await axios.get<HorizonInfo>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<HorizonInfo>(url);
+    cache.set(cacheKey, response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Horizon info not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Horizon info not found`, network);
   }
 }
 
@@ -386,8 +414,8 @@ export async function fetchPathfind(
   destinationAsset: string,
   network: Network = 'mainnet'
 ): Promise<PathfindResponse> {
-  const baseUrl = HORIZON_URLS[network];
-  let url = `${baseUrl}/paths/strict-receive?destination_account=${destinationAccount}&destination_amount=${destinationAmount}&source_account=${sourceAccount}`;
+  const axios = getAxiosInstance(network);
+  let url = `/paths/strict-receive?destination_account=${destinationAccount}&destination_amount=${destinationAmount}&source_account=${sourceAccount}`;
   
   if (destinationAsset !== 'native') {
     const [code, issuer] = destinationAsset.split(':');
@@ -398,21 +426,10 @@ export async function fetchPathfind(
   }
 
   try {
-    const response = await axios.get<PathfindResponse>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<PathfindResponse>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Paths not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Paths not found`, network);
   }
 }
 
@@ -428,25 +445,14 @@ export async function fetchAccountOperations(
   network: Network = 'mainnet',
   limit: number = 10
 ): Promise<CollectionResponse<Operation>> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/accounts/${accountId}/operations?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  const url = `/accounts/${accountId}/operations?limit=${limit}`;
 
   try {
-    const response = await axios.get<CollectionResponse<Operation>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<Operation>>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Operations not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Operations not found`, network);
   }
 }
 
@@ -462,25 +468,14 @@ export async function fetchAccountTrades(
   network: Network = 'mainnet',
   limit: number = 10
 ): Promise<CollectionResponse<Trade>> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/accounts/${accountId}/trades?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  const url = `/accounts/${accountId}/trades?limit=${limit}`;
 
   try {
-    const response = await axios.get<CollectionResponse<Trade>>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<CollectionResponse<Trade>>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Trades not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Trades not found`, network);
   }
 }
 
@@ -498,8 +493,8 @@ export async function fetchOrderbook(
   network: Network = 'mainnet',
   limit: number = 20
 ): Promise<Orderbook> {
-  const baseUrl = HORIZON_URLS[network];
-  let url = `${baseUrl}/order_book?limit=${limit}`;
+  const axios = getAxiosInstance(network);
+  let url = `/order_book?limit=${limit}`;
   
   // Selling asset
   if (sellingAsset === 'native') {
@@ -518,21 +513,10 @@ export async function fetchOrderbook(
   }
 
   try {
-    const response = await axios.get<Orderbook>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<Orderbook>(url);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(
-          `Order book not found`,
-          404,
-          'NOT_FOUND'
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Order book not found`, network);
   }
 }
 
@@ -548,34 +532,25 @@ export async function fetchAsset(
   issuer: string,
   network: Network = 'mainnet'
 ): Promise<AssetDetails> {
-  const baseUrl = HORIZON_URLS[network];
   const assetType = code.length <= 4 ? 'credit_alphanum4' : 'credit_alphanum12';
-  const url = `${baseUrl}/assets?asset_code=${code}&asset_issuer=${issuer}&asset_type=${assetType}`;
+  const params = { asset_code: code, asset_issuer: issuer, asset_type: assetType };
+  const cacheKey = getCacheKey(network, 'GET', '/assets', params);
+  const cached = cache.get<AssetDetails>(cacheKey);
+  if (cached) return cached;
+
+  const axios = getAxiosInstance(network);
+  const url = `/assets?asset_code=${code}&asset_issuer=${issuer}&asset_type=${assetType}`;
 
   try {
-    const response = await axios.get<AssetsResponse>(url, {
-      timeout: 10000,
-    });
+    const response = await axios.get<AssetsResponse>(url);
     const records = response.data._embedded.records;
     if (records.length === 0) {
       throw new HorizonError(`Asset ${code}:${issuer} not found`, 404, 'NOT_FOUND');
     }
+    cache.set(cacheKey, records[0]);
     return records[0];
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new HorizonError(`Asset ${code}:${issuer} not found`, 404, 'NOT_FOUND');
-      }
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR',
-          error.response.data
-        );
-      }
-    }
-    throw error;
+    handleHorizonError(error, `Asset ${code}:${issuer} not found`, network);
   }
 }
 
@@ -589,8 +564,8 @@ export async function broadcastTransaction(
   xdr: string,
   network: Network = 'mainnet'
 ): Promise<Transaction> {
-  const baseUrl = HORIZON_URLS[network];
-  const url = `${baseUrl}/transactions`;
+  const axios = getAxiosInstance(network);
+  const url = `/transactions`;
 
   try {
     const response = await axios.post<Transaction>(url, new URLSearchParams({ tx: xdr }), {
@@ -599,19 +574,6 @@ export async function broadcastTransaction(
     });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        throw new HorizonError(
-          error.response.data?.title || `HTTP ${error.response.status}`,
-          error.response.status,
-          error.response.data?.type || 'HTTP_ERROR',
-          error.response.data
-        );
-      }
-      if (error.request) {
-        throw new HorizonError('No response from Horizon server', 0, 'NETWORK_ERROR');
-      }
-    }
-    throw error;
+    handleHorizonError(error, 'Failed to broadcast transaction', network);
   }
 }
