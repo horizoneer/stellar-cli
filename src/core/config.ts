@@ -21,6 +21,44 @@ export interface StellarConfig {
 const CONFIG_FILE_NAME = '.stellarrc';
 
 /**
+ * Validates the config object
+ */
+function validateConfig(config: unknown): config is StellarConfig {
+  if (typeof config !== 'object' || config === null) {
+    return false;
+  }
+
+  const c = config as Record<string, unknown>;
+
+  // Validate network
+  if (c.network !== undefined && !['mainnet', 'testnet'].includes(c.network as string)) {
+    return false;
+  }
+
+  // Validate outputFormat
+  if (c.outputFormat !== undefined && !['json', 'csv', 'terminal'].includes(c.outputFormat as string)) {
+    return false;
+  }
+
+  // Validate defaultLimit
+  if (c.defaultLimit !== undefined && typeof c.defaultLimit !== 'number') {
+    return false;
+  }
+
+  // Validate plugins
+  if (c.plugins !== undefined && !Array.isArray(c.plugins)) {
+    return false;
+  }
+
+  // Validate aliases
+  if (c.aliases !== undefined && (typeof c.aliases !== 'object' || c.aliases === null)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Finds the config file in current directory or home directory
  */
 export function findConfigFile(): string | null {
@@ -50,8 +88,12 @@ export function readConfig(): StellarConfig {
 
   try {
     const content = fs.readFileSync(configPath, 'utf-8');
-    return JSON.parse(content) as StellarConfig;
-  } catch {
+    const parsed = JSON.parse(content);
+    if (validateConfig(parsed)) {
+      return parsed;
+    }
+    return {};
+  } catch (error) {
     return {};
   }
 }
